@@ -1,3 +1,6 @@
+import java.io.BufferedReader;
+import java.io.FileReader;
+import java.io.IOException;
 import java.util.*;
 
 public class Main {
@@ -5,23 +8,28 @@ public class Main {
     private static Map<String, Admin> admins = new HashMap<>();
     static Menu menu = new Menu();
     private static Customer loggedInCustomer;
+    public static int deniedCount;
+    public static int deliveredCount;
+    public static int orderCount;
     static PriorityQueue<Order> orderQueue = new PriorityQueue<>((o1, o2) -> {
         return Long.compare(o1.getTimestamp(), o2.getTimestamp()); // sorting orders based on timestamp
     });
 
     public static void main(String[] args) {
+        UserDataManager.initializeFiles();
         initializeMenu();
-        Scanner scanner = new Scanner(System.in);
-        System.out.println("Welcome to IIITD Canteen!");
+        showCLI();
+    }
 
+    public static void showCLI() {
+        Scanner scanner = new Scanner(System.in);
         while (true) {
             System.out.println("Please choose an option:");
             System.out.println("1. Sign up as Customer");
             System.out.println("2. Log in as Customer");
             System.out.println("3. Sign up as Admin");
             System.out.println("4. Log in as Admin");
-            System.out.println("Press any key to exit");
-
+            System.out.println("Press 'g' to open GUI");
             String choice = scanner.nextLine();
             switch (choice) {
                 case "1":
@@ -36,11 +44,17 @@ public class Main {
                 case "4":
                     logInAsAdmin(scanner);
                     break;
+                case "g":
+                    launchGUI();
+
                 default:
-                    System.out.println("BYEEE");
                     return;
             }
         }
+    }
+    private static void launchGUI() {
+        GUI_screen mainGUI = new GUI_screen();
+        mainGUI.setVisible(true);
     }
     private static void initializeMenu(){
 
@@ -55,59 +69,184 @@ public class Main {
         menu.addFoodItem(new FoodItem("Fries", 40, true, "Side"));
         menu.addFoodItem(new FoodItem("Brownie", 20, true, "Dessert"));
     }
-    private static void signUpAsCustomer(Scanner scanner) { System.out.print("Enter your name: ");
-        String name = scanner.nextLine();
-        String username = name + "iiitd"; System.out.println("Your username is: " + username);
-        System.out.print("Set a password: "); String password = scanner.nextLine();
-        customers.put(username, new Customer(username, password,menu));
-        System.out.println("Customer signed up successfully!");
+
+//private static void signUpAsCustomer(Scanner scanner) {
+//        System.out.print("Enter your name: ");
+//    String name = scanner.nextLine();
+//    String username = name + "iiitd";
+//    System.out.println("Your username is: " + username);
+//    System.out.print("Set a password: "); String password = scanner.nextLine();
+//    customers.put(username, new Customer(username, password,menu));
+//    System.out.println("Customer signed up successfully!");
+//
+//}
+private static void signUpAsCustomer(Scanner scanner) {
+    System.out.print("Enter your name: ");
+    String name = scanner.nextLine();
+    String username = name + "iiitd";
+    if (UserDataManager.customerExists(username, null)) {
+        System.out.println("This user already exists. Please log in or use a different name.");
+        return;
     }
 
-    private static void logInAsCustomer(Scanner scanner) {
-        System.out.print("Enter your username: ");
-        String username = scanner.nextLine();
-        if (!customers.containsKey(username)) {
-            System.out.println("This user doesn't exist.");
+    System.out.println("Your username is: " + username);
+    System.out.print("Set a password: ");
+    String password = scanner.nextLine();
+
+    UserDataManager.saveCustomerData(username, password, name);
+
+    customers.put(username, new Customer(username, password, menu));
+
+    System.out.println("Customer signed up successfully!");
+}
+
+//private static void logInAsCustomer(Scanner scanner) {
+//    System.out.print("Enter your username: ");
+//    String username = scanner.nextLine();
+//    System.out.print("Enter your password: ");
+//    String password = scanner.nextLine();
+//
+//    // Check if customer exists in file or in current session
+//    if (customers.containsKey(username)) {
+//        if (customers.get(username).getPassword().equals(password)) {
+//            System.out.println("You are logged in as customer: " + username);
+//            loggedInCustomer = customers.get(username);
+//            displayCustomerMenu(scanner);
+//            return;
+//        }
+//    }
+//
+//    // If not in current session, check file
+//    if (UserDataManager.customerExists(username, password)) {
+//        System.out.println("You are logged in as customer: " + username);
+//        // Create a new customer object for the session
+//        loggedInCustomer = new Customer(username, password, menu);
+//        customers.put(username, loggedInCustomer);
+//        displayCustomerMenu(scanner);
+//        return;
+//    }
+//
+//    System.out.println("Username and password do not match.");
+//}
+//
+//    private static void signUpAsAdmin(Scanner scanner) {
+//        System.out.print("Enter your name: ");
+//        String name = scanner.nextLine();
+//        String username = name + "iiitd";
+//        System.out.println("Your username is: " + username);
+//        String password = "1234";
+//        admins.put(username, new Admin(username, password));
+//        System.out.println("Admin signed up successfully! Your password is: " + password);
+//    }
+private static void logInAsCustomer(Scanner scanner) {
+    System.out.print("Enter your username: ");
+    String username = scanner.nextLine();
+
+     if (!customers.containsKey(username) && !UserDataManager.customerExists(username, null)) {
+        System.out.println("This customer user doesn't exist.");
+        return;
+    }
+
+    System.out.print("Enter your password: ");
+    String password = scanner.nextLine();
+ if (customers.containsKey(username)) {
+        if (customers.get(username).getPassword().equals(password)) {
+            System.out.println("You are logged in as customer: " + username);
+            loggedInCustomer = customers.get(username);
+            displayCustomerMenu(scanner);
             return;
-        }
-        System.out.print("Enter your password: ");
-        String password = scanner.nextLine();
-        if (!customers.get(username).getPassword().equals(password)) {
+        } else {
             System.out.println("Username and password do not match.");
             return;
         }
+    }
+
+    if (UserDataManager.customerExists(username, password)) {
         System.out.println("You are logged in as customer: " + username);
-        loggedInCustomer = customers.get(username);
+        loggedInCustomer = new Customer(username, password, menu);
+        customers.put(username, loggedInCustomer);
         displayCustomerMenu(scanner);
+        return;
     }
 
-    private static void signUpAsAdmin(Scanner scanner) {
-        System.out.print("Enter your name: ");
-        String name = scanner.nextLine();
-        String username = name + "iiitd";
-        System.out.println("Your username is: " + username);
-        String password = "1234";
-        admins.put(username, new Admin(username, password));
-        System.out.println("Admin signed up successfully! Your password is: " + password);
+    System.out.println("Username and password do not match.");
+}
+private static void signUpAsAdmin(Scanner scanner) {
+    System.out.print("Enter your name: ");
+    String name = scanner.nextLine();
+    String username = name + "iiitd";
+
+    if (UserDataManager.adminExists(username, null)) {
+        System.out.println("This admin user already exists. Please log in or use a different name.");
+        return;
     }
 
-    private static void logInAsAdmin(Scanner scanner) {
-        System.out.print("Enter your username: ");
-        String username = scanner.nextLine();
-        if (!admins.containsKey(username)) {
-            System.out.println("This user doesn't exist.");
+    System.out.println("Your username is: " + username);
+    String password = "1234";
+
+    UserDataManager.saveAdminData(username, password, name);
+    admins.put(username, new Admin(username, password));
+
+    System.out.println("Admin signed up successfully! Your password is: " + password);
+}
+//private static void logInAsAdmin(Scanner scanner) {
+//    System.out.print("Enter your username: ");
+//    String username = scanner.nextLine();
+//    System.out.print("Enter your password: ");
+//    String inputPassword = scanner.nextLine();
+//
+//    // Check if admin exists in current session
+//    if (admins.containsKey(username)) {
+//        if (admins.get(username).getPassword().equals(inputPassword)) {
+//            System.out.println("You are logged in as admin: " + username);
+//            displayAdminMenu(scanner);
+//            return;
+//        }
+//    }
+//
+//    // Check if admin exists in file
+//    if (UserDataManager.adminExists(username, inputPassword)) {
+//        System.out.println("You are logged in as admin: " + username);
+//        // Create a new admin object for the session
+//        admins.put(username, new Admin(username, inputPassword));
+//        displayAdminMenu(scanner);
+//        return;
+//    }
+//
+//    System.out.println("Username and password do not match.");
+//}
+private static void logInAsAdmin(Scanner scanner) {
+    System.out.print("Enter your username: ");
+    String username = scanner.nextLine();
+
+    if (!admins.containsKey(username) && !UserDataManager.adminExists(username, null)) {
+        System.out.println("This admin user doesn't exist.");
+        return;
+    }
+
+    System.out.print("Enter your password: ");
+    String inputPassword = scanner.nextLine();
+
+    if (admins.containsKey(username)) {
+        if (admins.get(username).getPassword().equals(inputPassword)) {
+            System.out.println("You are logged in as admin: " + username);
+            displayAdminMenu(scanner);
             return;
-        }
-        String password = "1234"; //password for all admins
-        System.out.print("Enter your password: ");
-        String inputPassword = scanner.nextLine();
-        if (!inputPassword.equals(password)) {
+        } else {
             System.out.println("Username and password do not match.");
             return;
         }
-        System.out.println("You are logged in as admin: " + username);
-        displayAdminMenu(scanner);
     }
+
+    if (UserDataManager.adminExists(username, inputPassword)) {
+        System.out.println("You are logged in as admin: " + username);
+        admins.put(username, new Admin(username, inputPassword));
+        displayAdminMenu(scanner);
+        return;
+    }
+
+    System.out.println("Username and password do not match.");
+}
     public static void displayCustomerMenu(Scanner scanner) {
         System.out.println("Customer Menu:");
         System.out.println("1. Browse Menu");
@@ -160,6 +299,7 @@ public class Main {
                     orderHistory(scanner);
                     break;
                 default:
+                    displayCustomerMenu(scanner);
                     return;
             }
         }
@@ -193,7 +333,7 @@ public class Main {
         String status = currentOrder.getStatus();
 
         if (status.equals("Pending")) {
-            Main.orderQueue.poll(); // Remove the order from the queue
+            Main.orderQueue.poll();
             System.out.println("Order has been cancelled.");
         } else if (status.equals("Processing") || status.equals("Delivered")) {
             System.out.println("Order cannot be cancelled as the status is: " + status);
@@ -209,18 +349,28 @@ public class Main {
         }
 
         System.out.println("Order History for " + Main.loggedInCustomer.getUsername() + ":");
-        for (Order order : Main.orderQueue) {
-            if (order.getCustomerUsername().equals(Main.loggedInCustomer.getUsername())) {
-                System.out.print("Order: ");
-                for (Map.Entry<FoodItem, Integer> entry : order.getItems().entrySet()) {
-                    FoodItem item = entry.getKey();
-                    int quantity = entry.getValue();
-                    System.out.print(item.getName() + " (" + quantity + "), ");
+
+        try (BufferedReader reader = new BufferedReader(new FileReader(UserDataManager.ORDER_HISTORY_FILE))) {
+            String line;
+            boolean foundOrders = false;
+
+            while ((line = reader.readLine()) != null) {
+                String[] parts = line.split(": ", 2);
+
+                if (parts.length == 2 && parts[0].equals(Main.loggedInCustomer.getUsername())) {
+                    foundOrders = true;
+                    System.out.println(parts[1]);
                 }
-                System.out.println("- Total Price: " + order.getTotalPrice() + " rs - Status: " + order.getStatus());
             }
+
+            if (!foundOrders) {
+                System.out.println("No order history found.");
+            }
+        } catch (IOException e) {
+            System.err.println("Error reading order history: " + e.getMessage());
         }
     }
+
     private static void displayAdminMenu(Scanner scanner) {
         while (true) {
             System.out.println("Admin Menu:");
@@ -249,35 +399,12 @@ public class Main {
     }
 
     private static void generateReport(Scanner scanner) {
-        int deliveredCount = 0;
-        int pendingCount = 0;
-        int deniedCount = 0;
-        double totalSales = 0.0;
-        Map<FoodItem, Integer> itemPopularity = new HashMap<>();
-
-        for (Order order : orderQueue) {
-            String status = order.getStatus();
-            if (status.equals("Delivered")) {
-                deliveredCount++;
-                totalSales += order.getTotalPrice();
-                for (Map.Entry<FoodItem, Integer> entry : order.getItems().entrySet()) {
-                    itemPopularity.put(entry.getKey(), itemPopularity.getOrDefault(entry.getKey(), 0) + entry.getValue());
-                }
-            } else if (status.equals("Pending")) {
-                pendingCount++;
-            } else if (status.equals("Denied")) {
-                deniedCount++;
-            }
-        }
 
         System.out.println("Daily Sales Report:");
+        System.out.println("Total Orders Placed: "+orderCount);
         System.out.println("Total Orders Delivered: " + deliveredCount);
-        System.out.println("Total Orders Pending: " + pendingCount);
         System.out.println("Total Orders Denied: " + deniedCount);
-        System.out.println("Total Sales: " + totalSales + " rs");
-
-        System.out.println("Most Popular Items Sold:");
-        itemPopularity.entrySet().stream().sorted((entry1, entry2) -> entry2.getValue().compareTo(entry1.getValue())).forEach(entry -> System.out.println(entry.getKey().getName() + ": " + entry.getValue() + " sold"));
+        System.out.println("Total Sales: " + Cart.total_sales);
     }
 
     private static void orderManagementMenu(Scanner scanner) {
@@ -304,16 +431,7 @@ public class Main {
     public static Map<String, Customer> getCustomers() {
         return customers;
     }
-    public static void placeOrder(Customer customer) {
-        Cart cart = customer.getCart();
-        double totalPrice = cart.getTotalPrice();
-        Map<FoodItem, Integer> orderItems = new HashMap<>(cart.getItems());
-        String specialRequest = cart.getSpecialRequest();
-        Order newOrder = new Order(customer.getUsername(), orderItems, totalPrice, specialRequest);
-        orderQueue.offer(newOrder);
-        System.out.println("Order placed successfully!");
-        cart.clear();
-    }
+
     public static void viewPendingOrders() {
         if (orderQueue.isEmpty()) {
             System.out.println("No pending orders.");
@@ -369,14 +487,17 @@ public class Main {
                 currentOrder.setStatus("Processing");
                 System.out.println("Status set to Processing.");
                 System.out.println("Handling special request: " + currentOrder.getSpecialRequest());
+
                 break;
             case "2":
                 currentOrder.setStatus("Delivered");
                 System.out.println("Status set to Delivered.");
-                orderQueue.poll(); // Dequeue
+                deliveredCount++;
+                orderQueue.poll();
                 break;
             case "3":
                 currentOrder.setStatus("Denied");
+                deniedCount++;
                 System.out.println("order denied");
                 processRefund(currentOrder);
                 orderQueue.poll();
@@ -386,6 +507,21 @@ public class Main {
                 return;
         }
     }
+
+public static void placeOrder(Customer customer) {
+    Cart cart = customer.getCart();
+    double totalPrice = cart.getTotalPrice();
+    Map<FoodItem, Integer> orderItems = new HashMap<>(cart.getItems());
+    String specialRequest = cart.getSpecialRequest();
+
+    UserDataManager.saveOrderHistory(customer.getUsername(), orderItems, totalPrice);
+
+    Order newOrder = new Order(customer.getUsername(), orderItems, totalPrice, specialRequest);
+    orderQueue.offer(newOrder);
+    orderCount++;
+    System.out.println("Order placed successfully!");
+    cart.clear();
+}
 
     private static void processRefund(Order order) {
         System.out.println("Refund process initiated for order " + order.getCustomerUsername());
