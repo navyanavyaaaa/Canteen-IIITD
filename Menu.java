@@ -17,7 +17,8 @@ public class Menu { private ArrayList<FoodItem> foodItems;
         }
     }
     public List<FoodItem> getFoodItems() {
-        return foodItems; // Return the list of food items
+
+        return foodItems;
     }
 
     public void viewAllItems() {
