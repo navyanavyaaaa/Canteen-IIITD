@@ -1,6 +1,11 @@
-import java.util.HashMap; import java.util.Map; import java.util.Scanner;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Scanner;
 
-public class Cart { private Map<FoodItem, Integer> items; private Menu menu;private String special_request;
+public class Cart {
+    private Map<FoodItem, Integer> items;
+    private Menu menu;private String special_request;
+    public static double total_sales;
 
     public Cart(Menu menu) {
         items = new HashMap<>();
@@ -96,12 +101,13 @@ public class Cart { private Map<FoodItem, Integer> items; private Menu menu;priv
                     checkoutProcess(scanner, customer);
                     break;
                 default:
-                    return; // Exit cart operations
+                    Main.displayCustomerMenu(scanner);
+                    return;
             }
         }
     }
 
-    private void addItemToCart(Scanner scanner, Customer customer) {
+    void addItemToCart(Scanner scanner, Customer customer) {
         menu.viewAllItems();
         System.out.print("Enter the name of the food item you want to add: ");
         String itemName = scanner.nextLine();
@@ -119,8 +125,27 @@ public class Cart { private Map<FoodItem, Integer> items; private Menu menu;priv
             return;
         }
 
-        System.out.print("Specify quantity: ");
-        int quantity = Integer.parseInt(scanner.nextLine());
+        int quantity = 0;
+        boolean validInput = false;
+
+        while (!validInput) {
+            System.out.print("Specify quantity: ");
+            String input = scanner.nextLine();
+
+            try {
+                if (input.isEmpty()) {
+                    throw new NumberFormatException("Input cannot be empty.");
+                }
+                quantity = Integer.parseInt(input);
+                if (quantity <= 0) {
+                    throw new NumberFormatException("Quantity must be greater than zero.");
+                }
+                validInput = true;
+            } catch (NumberFormatException e) {
+                System.out.println("Invalid input. Please enter a valid positive integer for quantity.");
+            }
+        }
+
         addItem(itemToAdd, quantity);
         System.out.println(itemToAdd.getName() + " - " + quantity + " has been added to your cart.");
 
@@ -133,63 +158,114 @@ public class Cart { private Map<FoodItem, Integer> items; private Menu menu;priv
         }
     }
 
-    private void modifyQuantitiesInCart(Scanner scanner, Customer customer) {
-        Cart cart = customer.getCart();
-        cleanUpCart();
+//    private void modifyQuantitiesInCart(Scanner scanner, Customer customer) {
+//        Cart cart = customer.getCart();
+//        cleanUpCart();
+//
+//        if (cart.isEmpty()) {
+//            System.out.println(customer.getUsername() + "'s cart is empty.");
+//            return;
+//        }
+//
+//        System.out.println(customer.getUsername() + "'s Cart:");
+//        for (Map.Entry<FoodItem, Integer> entry : cart.getItems().entrySet()) {
+//            FoodItem item = entry.getKey();
+//            int quantity = entry.getValue();
+//            System.out.println(item.getName() + " (" + item.getCategory() + ") - " + quantity + " - " + (item.getPrice() * quantity) + " rs");
+//        }
+//
+//        System.out.print("Type the name of the item you want to modify quantities for: ");
+//        String itemName = scanner.nextLine();
+//
+//        FoodItem itemToModify = null;
+//        for (Map.Entry<FoodItem, Integer> entry : cart.getItems().entrySet()) {
+//            if (entry.getKey().getName().equalsIgnoreCase(itemName)) {
+//                itemToModify = entry.getKey();
+//                break;
+//            }
+//        }
+//
+//        if (itemToModify == null) {
+//            System.out.println("Item not in cart.");
+//            System.out.println("Press 'o' to go to cart operations menu, 'c' to go to customer menu, or any other key to go to main menu.");
+//            String nextAction = scanner.nextLine();
+//            if (nextAction.equals("o")) {
+//                return;
+//            } else if (nextAction.equals("c")) {
+//                Main.displayCustomerMenu(scanner);
+//            }
+//            return;
+//        }
+//
+//        System.out.print("Enter the new quantity for " + itemToModify.getName() + ": ");
+//        int newQuantity = Integer.parseInt(scanner.nextLine());
+//
+//        if (newQuantity <= 0) {
+//            cart.removeItem(itemToModify);
+//            System.out.println(itemToModify.getName() + " has been removed from your cart.");
+//        } else {
+//            cart.modifyItemQuantity(itemToModify, newQuantity);
+//            System.out.println(itemToModify.getName() + " quantity updated to " + newQuantity + ".");
+//        }
+//
+//        System.out.println("Press 'o' to go to cart operations menu, 'c' to go to customer menu, or any other key to go to main menu.");
+//        String nextAction = scanner.nextLine();
+//        if (nextAction.equals("o")) {
+//            return;
+//        } else if (nextAction.equals("c")) {
+//            Main.displayCustomerMenu(scanner);
+//        }}
+void modifyQuantitiesInCart(Scanner scanner, Customer customer) {
+    Cart cart = customer.getCart();
+    cleanUpCart();
 
-        if (cart.isEmpty()) {
-            System.out.println(customer.getUsername() + "'s cart is empty.");
-            return;
+    if (cart.isEmpty()) {
+        System.out.println(customer.getUsername() + "'s cart is empty.");
+        return;
+    }
+
+    System.out.println(customer.getUsername() + "'s Cart:");
+    for (Map.Entry<FoodItem, Integer> entry : cart.getItems().entrySet()) {
+        FoodItem item = entry.getKey();
+        int quantity = entry.getValue();
+        System.out.println(item.getName() + " (" + item.getCategory() + ") - " + quantity + " - " + (item.getPrice() * quantity) + " rs");
+    }
+
+    System.out.print("Type the name of the item you want to modify quantities for: ");
+    String itemName = scanner.nextLine();
+
+    FoodItem itemToModify = null;
+    for (Map.Entry<FoodItem, Integer> entry : cart.getItems().entrySet()) {
+        if (entry.getKey().getName().equalsIgnoreCase(itemName)) {
+            itemToModify = entry.getKey();
+            break;
         }
+    }
 
-        System.out.println(customer.getUsername() + "'s Cart:");
-        for (Map.Entry<FoodItem, Integer> entry : cart.getItems().entrySet()) {
-            FoodItem item = entry.getKey();
-            int quantity = entry.getValue();
-            System.out.println(item.getName() + " (" + item.getCategory() + ") - " + quantity + " - " + (item.getPrice() * quantity) + " rs");
-        }
+    if (itemToModify == null) {
+        System.out.println("Item not in cart.");
+        return;
+    }
 
-        System.out.print("Type the name of the item you want to modify quantities for: ");
-        String itemName = scanner.nextLine();
+    System.out.print("Enter the new quantity for " + itemToModify.getName() + ": ");
+    int newQuantity = Integer.parseInt(scanner.nextLine());
 
-        FoodItem itemToModify = null;
-        for (Map.Entry<FoodItem, Integer> entry : cart.getItems().entrySet()) {
-            if (entry.getKey().getName().equalsIgnoreCase(itemName)) {
-                itemToModify = entry.getKey();
-                break;
-            }
-        }
+    if (newQuantity <= 0) {
+        System.out.println("Quantity must be greater than zero.");
+        return; // Prevents the action and returns to the cart operations menu
+    } else {
+        cart.modifyItemQuantity(itemToModify, newQuantity);
+        System.out.println(itemToModify.getName() + " quantity updated to " + newQuantity + ".");
+    }
 
-        if (itemToModify == null) {
-            System.out.println("Item not in cart.");
-            System.out.println("Press 'o' to go to cart operations menu, 'c' to go to customer menu, or any other key to go to main menu.");
-            String nextAction = scanner.nextLine();
-            if (nextAction.equals("o")) {
-                return;
-            } else if (nextAction.equals("c")) {
-                Main.displayCustomerMenu(scanner);
-            }
-            return;
-        }
-
-        System.out.print("Enter the new quantity for " + itemToModify.getName() + ": ");
-        int newQuantity = Integer.parseInt(scanner.nextLine());
-
-        if (newQuantity <= 0) {
-            cart.removeItem(itemToModify);
-            System.out.println(itemToModify.getName() + " has been removed from your cart.");
-        } else {
-            cart.modifyItemQuantity(itemToModify, newQuantity);
-            System.out.println(itemToModify.getName() + " quantity updated to " + newQuantity + ".");
-        }
-
-        System.out.println("Press 'o' to go to cart operations menu, 'c' to go to customer menu, or any other key to go to main menu.");
-        String nextAction = scanner.nextLine();
-        if (nextAction.equals("o")) {
-            return;
-        } else if (nextAction.equals("c")) {
-            Main.displayCustomerMenu(scanner);
-        }}
+    System.out.println("Press 'o' to go to cart operations menu, 'c' to go to customer menu, or any other key to go to main menu.");
+    String nextAction = scanner.nextLine();
+    if (nextAction.equals("o")) {
+        return;
+    } else if (nextAction.equals("c")) {
+        Main.displayCustomerMenu(scanner);
+    }
+}
     private void removeItemFromCart(Scanner scanner, Customer customer) {
         Cart cart = customer.getCart();
         cleanUpCart();
@@ -284,10 +360,9 @@ public class Cart { private Map<FoodItem, Integer> items; private Menu menu;priv
         System.out.print("Enter special request: ");
         this.special_request= scanner.nextLine();
 
-        // Prompt for payment
         System.out.print("Press 'p' to pay " + totalPrice + " rs: ");
         String paymentAction = scanner.nextLine();
-
+        total_sales=total_sales+totalPrice;
         if (paymentAction.equalsIgnoreCase("p")) {
             System.out.println("Checkout complete! Thank you for your purchase.");
 
@@ -299,6 +374,7 @@ public class Cart { private Map<FoodItem, Integer> items; private Menu menu;priv
     }
 
     public String getSpecialRequest() {
+
         return this.special_request;
     }
 }
